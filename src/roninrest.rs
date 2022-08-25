@@ -9,8 +9,6 @@ use crate::NFT;
 
 const DEFAULT_USER_AGENT: &str = "ronin/wallet-export0.1.0 See: https://github.com/wehmoen/wallet-export";
 
-pub type RRTransactionHash = String;
-
 #[derive(Serialize, Deserialize)]
 pub struct NFTIdList {
     pub address: String,
@@ -70,7 +68,7 @@ impl Adapter {
             };
 
             let mut items = items.unwrap().as_array().to_owned().unwrap().to_owned().iter().map(|i| -> String {
-                i.to_string().replace("\"", "")
+                i.to_string().replace('"', "")
             }).collect::<Vec<String>>();
 
             let try_more = items.len() == 25;
@@ -81,7 +79,7 @@ impl Adapter {
                 break;
             }
 
-            offset = offset + 25;
+            offset += 25;
         }
 
         ids

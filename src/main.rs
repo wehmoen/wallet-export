@@ -1,37 +1,39 @@
-mod roninrest;
-
-use roninrest::Adapter;
-use serde::{Serialize, Deserialize};
+use dialoguer::Input;
+use serde::{Deserialize, Serialize};
 use web3::types::Address;
 
-enum NFT {
+use roninrest::Adapter;
+
+mod roninrest;
+
+pub enum NFT {
     Axie,
     Land,
-    Item
+    Item,
 }
 
 #[derive(Serialize, Deserialize)]
 struct Wallet {
     axies: Vec<String>,
     lands: Vec<String>,
-    items: Vec<String>
+    items: Vec<String>,
 }
 
 struct ArgParser {}
+
 impl ArgParser {
     fn parse() -> Vec<String> {
         std::env::args().collect()
     }
 
     fn split(param: &String) -> Option<String> {
-
         let args: Vec<String> = ArgParser::parse();
 
         for arg in args {
             if arg.starts_with(param) {
                 let kv: Vec<&str> = arg.split('=').collect();
                 if kv.len() == 2 {
-                    return Some(kv[1].to_string())
+                    return Some(kv[1].to_string());
                 }
             }
         }
@@ -40,10 +42,13 @@ impl ArgParser {
     }
 }
 
+fn normalize_address(input: &str) -> String {
+    input.replace("ronin:", "0x")
+}
+
 #[tokio::main]
 async fn main() {
-
-    let address: String = match ArgParser::split(&"--address".to_string()) {
+    let wallet: String = match ArgParser::split(&"--address".to_string()) {
         None => {
             normalize_address(
                 &Input::new()
@@ -58,7 +63,7 @@ async fn main() {
                     .interact()
                     .unwrap()
             )
-        },
+        }
         Some(passed_address) => {
             let address = normalize_address(&passed_address).as_str().parse::<Address>();
             match address {
@@ -69,8 +74,6 @@ async fn main() {
             }
         }
     };
-
-    let wallet: String = "ronin:3759468f9fd589665c8affbe52414ef77f863f72".to_string();
 
     let rr = Adapter::new();
 
@@ -84,21 +87,18 @@ async fn main() {
     println!("Loading items...");
     let items = rr.list_nft(NFT::Item, wallet.clone()).await;
 
-    println!("Result:");
-    println!("AXIES: {}\"Lands: {}\"Items: {}", axies.len(), lands.len(), items.len());
+    println!("Result:\n\nAxies: {}\nLands: {}\nItems: {}", axies.len(), lands.len(), items.len());
 
-    let serialized = serde_json::to_string(
-        &Wallet {
-            axies,
-            lands,
-            items
-        }
+    let serialized = serde_json::to_string(&Wallet {
+        axies,
+        lands,
+        items,
+    }
     ).unwrap();
 
     let file_name = format!("{}.json", wallet);
 
-    std::fs::write(file_name, serialized).unwrap();
+    std::fs::write(&file_name, serialized).unwrap();
 
     println!("Wallet stored as: {}", file_name);
-
 }
