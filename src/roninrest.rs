@@ -49,6 +49,7 @@ impl Adapter {
         let mut ids: Vec<String> = vec![];
 
         let address = normalize_address(&address);
+        let mut offset: i64 = 0;
 
         loop {
             let param: String = match nft {
@@ -58,12 +59,29 @@ impl Adapter {
             };
             let param = param.to_lowercase();
 
+            let request_url = format!("{}/ronin/nfts/{}/{}?offset={}", self.host, param, address, offset);
             let data: serde_json::Value = serde_json::from_str(
-                &self.client.get(format!("{}/ronin/nfts/{}/{}", self.host, param, address)).header("user-agent", DEFAULT_USER_AGENT).send().await.unwrap().text().await.unwrap()
+                &self.client.get(request_url).header("user-agent", DEFAULT_USER_AGENT).send().await.unwrap().text().await.unwrap()
             ).unwrap();
+            let items = match nft {
+                NFT::Axie => data.get("axie"),
+                NFT::Land => data.get("land"),
+                NFT::Item => data.get("item")
+            };
 
-            println!("{:?}", data);
-            break;
+            let mut items = items.unwrap().as_array().to_owned().unwrap().to_owned().iter().map(|i| -> String {
+                i.to_string().replace("\"", "")
+            }).collect::<Vec<String>>();
+
+            let try_more = items.len() == 25;
+
+            ids.append(&mut items);
+
+            if !try_more {
+                break;
+            }
+
+            offset = offset + 25;
         }
 
         ids
