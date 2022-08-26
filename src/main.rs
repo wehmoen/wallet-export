@@ -1,8 +1,9 @@
+use std::io::{BufWriter, stdout};
+
 use dialoguer::Input;
+use roninrest::Adapter;
 use serde::{Deserialize, Serialize};
 use web3::types::Address;
-
-use roninrest::Adapter;
 
 mod roninrest;
 
@@ -56,8 +57,22 @@ fn normalize_address(input: &str) -> String {
 
 #[tokio::main]
 async fn main() {
+    let silent: bool = match ArgParser::split(&"--silent".to_string()) {
+        None => false,
+        Some(_) => true
+    };
+
+    if !silent {
+        ferris_says::say(b"Ronin Wallet Export v0.1.0\n\nby: wehmoen#0001", 24, &mut BufWriter::new(stdout())).unwrap();
+    }
+
     let wallet: String = match ArgParser::split(&"--address".to_string()) {
         None => {
+
+            if silent {
+                panic!("No address provided!");
+            }
+
             normalize_address(
                 &Input::new()
                     .with_prompt("Please enter your Ronin address")
@@ -84,21 +99,25 @@ async fn main() {
     };
 
     let rr = Adapter::new();
-
-    println!("Loading runes...");
+    if !silent {
+        println!("Loading runes...");
+    }
     let runes = rr.list_erc1155(ERC1155::Rune, wallet.clone()).await;
-
-    println!("Loading charms...");
+    if !silent {
+        println!("Loading charms...");
+    }
     let charms = rr.list_erc1155(ERC1155::Charm, wallet.clone()).await;
-
-    println!("Loading axies...");
-
+    if !silent {
+        println!("Loading axies...");
+    }
     let axies = rr.list_nft(NFT::Axie, wallet.clone()).await;
-
-    println!("Loading lands...");
+    if !silent {
+        println!("Loading lands...");
+    }
     let lands = rr.list_nft(NFT::Land, wallet.clone()).await;
-
-    println!("Loading items...");
+    if !silent {
+        println!("Loading items...");
+    }
     let items = rr.list_nft(NFT::Item, wallet.clone()).await;
 
     let mut runes_vec: Vec<[String; 2]> = vec![];
@@ -121,9 +140,9 @@ async fn main() {
         }
     }
 
-
-    println!("Result:\n\nAxies: {}\nLands: {}\nItems: {}\nRunes: {}\nCharms: {}", axies.len(), lands.len(), items.len(), total_runes, total_charms);
-
+    if !silent {
+        println!("Result:\n\nAxies: {}\nLands: {}\nItems: {}\nRunes: {}\nCharms: {}", axies.len(), lands.len(), items.len(), total_runes, total_charms);
+    }
     let serialized = serde_json::to_string(&Wallet {
         axies,
         lands,
@@ -133,9 +152,30 @@ async fn main() {
     }
     ).unwrap();
 
-    let file_name = format!("{}.json", wallet);
+    let output_format = match ArgParser::split(&"--output".to_string()) {
+        None => "stdout".to_string(),
+        Some(value) => {
 
-    std::fs::write(&file_name, serialized).unwrap();
+            match value.as_str() {
+                "file" => value,
+                "stdout" => value,
+                _ => {
+                    panic!("Invalid --output format. Supported: file,stdout");
+                }
+            }
+        }
+    };
 
-    println!("Wallet stored as: {}", file_name);
+    if output_format == "file" {
+        let file_name = format!("{}.json", wallet);
+
+        std::fs::write(&file_name, &serialized).unwrap();
+        if !silent {
+            println!("Wallet stored as: {}", file_name);
+        }
+    }
+
+    if output_format == "stdout" {
+        println!("{}", serialized);
+    }
 }
