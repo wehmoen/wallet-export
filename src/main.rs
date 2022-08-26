@@ -6,6 +6,12 @@ use roninrest::Adapter;
 
 mod roninrest;
 
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
+pub enum ERC1155 {
+    Rune,
+    Charm,
+}
+
 pub enum NFT {
     Axie,
     Land,
@@ -17,6 +23,8 @@ struct Wallet {
     axies: Vec<String>,
     lands: Vec<String>,
     items: Vec<String>,
+    runes: Vec<[String; 2]>,
+    charms: Vec<[String; 2]>,
 }
 
 struct ArgParser {}
@@ -53,6 +61,7 @@ async fn main() {
             normalize_address(
                 &Input::new()
                     .with_prompt("Please enter your Ronin address")
+                    .with_initial_text("ronin:0eb5ba87887132b2eeb5076dec4df3e4980bcc8c")
                     .validate_with(|input: &String| -> Result<(), &str> {
                         let address = normalize_address(input).as_str().parse::<Address>();
                         match address {
@@ -77,6 +86,12 @@ async fn main() {
 
     let rr = Adapter::new();
 
+    println!("Loading runes...");
+    let runes = rr.list_erc1155(ERC1155::Rune, wallet.clone()).await;
+
+    println!("Loading charms...");
+    let charms = rr.list_erc1155(ERC1155::Charm, wallet.clone()).await;
+
     println!("Loading axies...");
 
     let axies = rr.list_nft(NFT::Axie, wallet.clone()).await;
@@ -87,12 +102,31 @@ async fn main() {
     println!("Loading items...");
     let items = rr.list_nft(NFT::Item, wallet.clone()).await;
 
-    println!("Result:\n\nAxies: {}\nLands: {}\nItems: {}", axies.len(), lands.len(), items.len());
+    let mut runes_vec: Vec<[String; 2]> = vec![];
+    let mut total_runes: i64 = 0;
+
+    for rune in runes {
+        total_runes += rune.1.balance;
+        runes_vec.push(rune.1.minimal());
+    }
+
+    let mut charms_vec: Vec<[String; 2]> = vec![];
+    let mut total_charms: i64 = 0;
+
+    for charm in charms {
+        total_charms += charm.1.balance;
+        charms_vec.push(charm.1.minimal());
+    }
+
+
+    println!("Result:\n\nAxies: {}\nLands: {}\nItems: {}\nRunes: {}\nCharms: {}", axies.len(), lands.len(), items.len(), total_runes, total_charms);
 
     let serialized = serde_json::to_string(&Wallet {
         axies,
         lands,
         items,
+        runes: runes_vec,
+        charms: charms_vec,
     }
     ).unwrap();
 
