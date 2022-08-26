@@ -61,7 +61,6 @@ async fn main() {
             normalize_address(
                 &Input::new()
                     .with_prompt("Please enter your Ronin address")
-                    .with_initial_text("ronin:0eb5ba87887132b2eeb5076dec4df3e4980bcc8c")
                     .validate_with(|input: &String| -> Result<(), &str> {
                         let address = normalize_address(input).as_str().parse::<Address>();
                         match address {
