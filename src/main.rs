@@ -106,16 +106,20 @@ async fn main() {
     let mut total_runes: i64 = 0;
 
     for rune in runes {
-        total_runes += rune.1.balance;
-        runes_vec.push(rune.1.minimal());
+        if rune.1.balance > 0 {
+            total_runes += rune.1.balance;
+            runes_vec.push(rune.1.minimal());
+        }
     }
 
     let mut charms_vec: Vec<[String; 2]> = vec![];
     let mut total_charms: i64 = 0;
 
     for charm in charms {
-        total_charms += charm.1.balance;
-        charms_vec.push(charm.1.minimal());
+        if charm.1.balance > 0 {
+            total_charms += charm.1.balance;
+            charms_vec.push(charm.1.minimal());
+        }
     }
 
 

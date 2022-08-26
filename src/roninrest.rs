@@ -40,7 +40,7 @@ pub struct TokenInfo {
 
 impl TokenInfo {
     pub fn minimal(&self) -> [String; 2] {
-        [self.id.clone(), self.balance.to_string()]
+        [self.token_id.clone().to_string(), self.balance.to_string()]
     }
 }
 
