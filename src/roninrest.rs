@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use std::time::Duration;
 
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
@@ -8,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use web3::contract::{Contract, Options};
 use web3::transports::Http;
-use web3::types::{Address};
+use web3::types::Address;
 use web3::Web3;
 
 use crate::{ERC1155, NFT};
@@ -36,6 +37,20 @@ pub struct TokenInfo {
     description: String,
     image_url: String,
     pub balance: i64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ERC20Balance {
+    name: String,
+    balance: String,
+    decimals: String,
+    contract: String
+}
+
+impl Display for ERC20Balance {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.name, self.balance)
+    }
 }
 
 impl TokenInfo {
@@ -72,6 +87,40 @@ impl Adapter {
                 )
             ).build(),
         }
+    }
+
+    pub async fn list_erc20(&self, address: String) -> Vec<ERC20Balance> {
+        let data: Value = serde_json::from_str(&self.client.get(format!("https://ronin.rest/ronin/wallet/{}", address)).header("user-agent", DEFAULT_USER_AGENT).send().await.unwrap().text().await.unwrap()).unwrap();
+        let mut wallet: Vec<ERC20Balance> = vec![];
+
+        let balances = data["balances"].to_owned();
+        let balances = balances.as_object().unwrap();
+        let tokens = &balances.keys().collect::<Vec<&String>>();
+
+        for token in tokens {
+            match balances.get(*token) {
+                None => {}
+                Some(v) => {
+                    if v["type"] == "ERC20" {
+                        let balance = v["balance"].as_str().unwrap().to_string().parse::<f64>().unwrap();
+                        if balance > 0.0 {
+                            wallet.push(
+                                ERC20Balance {
+                                    name: String::from(*token),
+                                    balance: v["balance"].as_str().unwrap().to_string(),
+                                    decimals: v["decimals"].as_u64().unwrap().to_string(),
+                                    contract: v["contract"].as_str().unwrap().to_string()
+                                }
+                            )
+                        }
+
+                    }
+                }
+            }
+        }
+
+        wallet
+
     }
 
     pub async fn list_erc1155(&self, erc1155: ERC1155, address: String) -> HashMap<u64, TokenInfo> {
@@ -130,15 +179,16 @@ impl Adapter {
         }).collect::<Vec<u64>>();
 
         for id in token_ids {
-            let balance: i64 = contract.query("balanceOf",
-                                              (
-                                                  address,
-                                                  id
-                                              )
-                                              ,
-                                              None,
-                                              Options::default(),
-                                              None)
+            let balance: i64 = contract.query(
+                "balanceOf",
+                (
+                    address,
+                    id
+                ),
+                None,
+                Options::default(),
+                None,
+            )
                 .await.unwrap();
 
             match token.get(&id) {
